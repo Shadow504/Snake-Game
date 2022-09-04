@@ -1,1 +1,1 @@
-Simple snake game made as learning material
+Simple snake game made as learning material, well-documented
