@@ -81,7 +81,9 @@ class GameController extends JPanel {
                 currentSnake.moveSnake();
                 checkCollisions();
 
-                scoreUI.setText("Score: " + currentSnake.scoreCounter.currScore.get());
+                if (scoreUI != null) {
+                    scoreUI.setText("Score: " + currentSnake.scoreCounter.currScore.get());
+                }
     
                 Thread.sleep(Stats.MILISECONDS_PER_UPDATE);
             } else {
