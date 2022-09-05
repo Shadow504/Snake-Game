@@ -68,12 +68,8 @@ public class Snake {
         deleteTail();
 
         Coordinates oldHeadPos = bodyPartsTbl.get(0);
-        // The new head position is defined by the direction
-        // we minus the Y axis as the grid layout is inverted
-        Coordinates newHeadPos = checkBoundary(new Coordinates(
-            oldHeadPos.x + unitSize * direction.x, 
-            oldHeadPos.y - unitSize * direction.y
-        ));
+
+        Coordinates newHeadPos = getNewHeadPos();
 
         // Update / replace the head position
         bodyPartsTbl.set(0, newHeadPos);
@@ -88,6 +84,19 @@ public class Snake {
         // recolor
         Cell.changeCellColor(oldHeadPos, colorKeys.SNAKE);
         Cell.changeCellColor(newHeadPos, colorKeys.SNAKE);
+    }
+
+    public Coordinates getNewHeadPos() {
+        Coordinates oldHeadPos = bodyPartsTbl.get(0);
+        // The new head position is defined by the direction
+        // we minus the Y axis as the grid layout is inverted
+        Coordinates newHeadPos = checkBoundary(new Coordinates(
+            oldHeadPos.x + unitSize * direction.x, 
+            oldHeadPos.y - unitSize * direction.y
+        ));
+
+        // *Made this a method to cater to the GetArea class
+        return newHeadPos;
     }
 
     private Coordinates checkBoundary(Coordinates newHeadPos) {

@@ -1,17 +1,14 @@
 package snake;
 
-import java.util.Random;
-
 import javax.swing.*;
 
 class GameController extends JPanel {
     JFrame currentContainer;
     
-    private KeyListeners currentKeyListener;
-
-    Random random = new Random();
+    // TODO: Do research about transients / serializable
+    private transient KeyListeners currentKeyListener;
     
-    private Snake currentSnake;
+    private transient Snake currentSnake;
     private JLabel scoreUI;
 
     // change this into a table for multiple snakes at once
@@ -35,9 +32,7 @@ class GameController extends JPanel {
 
         Thread newT = new Thread(() ->{
             try {
-                ObjectsHandler.spawnAndQueueObjects(() -> {
-                    return getAvailableArea();
-                });
+                ObjectsHandler.spawnAndQueueObjects(currentSnake);
 
                 gameLoop();
             } catch (InterruptedException e) {
@@ -90,28 +85,6 @@ class GameController extends JPanel {
                 break;
             }
         }
-    }
-
-    public Coordinates getAvailableArea() {
-        Coordinates randomPos = new Coordinates(random.nextInt(Stats.SCREEN_WIDTH), random.nextInt(Stats.SCREEN_HEIGHT));
-
-        // snap to grid
-        randomPos.x = randomPos.x - randomPos.x % Stats.UNIT_SIZE;
-        randomPos.y = randomPos.y - randomPos.y % Stats.UNIT_SIZE;
-
-        // Check the snake pos
-        for (int i = 1; i < currentSnake.bodyPartsTbl.size(); i++) {
-            if (randomPos.equalsCoordinate(currentSnake.bodyPartsTbl.get(i))) {
-                return getAvailableArea();
-            }
-        }
-
-        // Check the objects pos
-        if (ObjectsHandler.checkOccupiedPosition(randomPos)) {
-            return getAvailableArea();
-        }
-
-        return randomPos;
     }
 
     public void checkCollisions() {

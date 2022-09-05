@@ -43,13 +43,13 @@ public class ObjectsHandler {
         System.out.println("cannot instantiate the ObjectsHandler class");
     }
 
-    public static void spawnAndQueueObjects(Callable<Coordinates> c) {
+    public static void spawnAndQueueObjects(Snake s) {
         System.out.println("Spawned objects");
         // Might not be a good idea to pass and store callables
         // The callable passed in simply find an empty position on the jframe
-        new Apple(c);
-        new Bomb(c);
-        new DoublePoints(c);
+        new Apple(s);
+        new Bomb(s);
+        new DoublePoints(s);
     }
 
     // Detect if the snake collides with an obj, if it does, fire the .onTouched() method
@@ -80,13 +80,8 @@ public class ObjectsHandler {
         }     
         currentObjects.clear();
 
-        int childCount = 0;
         for (Future<?> effects : objectsEffects) {
             effects.cancel(true);
-            childCount++;
-            System.out.println(
-                "Looped in objects effects: " + childCount
-            );
         }
         objectsEffects.clear();
 
@@ -107,8 +102,6 @@ abstract class FieldObjects {
     // Store a collection of futures for cancellations
     ArrayList<Future<?>> futureCollections = new ArrayList<>();
 
-    Callable<Coordinates> findPosCallback;
-
     static HashMap<String, AtomicInteger> numberOfObjects = ObjectsHandler.numberOfObjects;
     static Map<String, Integer> maxAmountTbl = Map.of(
         "Apple", 1,
@@ -117,7 +110,7 @@ abstract class FieldObjects {
     );
 
     // Constructor for ordinary object
-    FieldObjects(Callable<Coordinates> c, String name) {
+    FieldObjects(String name, Snake snake) {
         this.name = name;
         this.maxAmount = maxAmountTbl.get(name);
 
@@ -125,12 +118,10 @@ abstract class FieldObjects {
             numberOfObjects.put(this.name, new AtomicInteger(0));
         }
 
-        findPosCallback = c;
-
         if (!FieldObjects.validateAmount(name, maxAmount)) { return; }
 
         try {
-            this.pos = findPosCallback.call();
+            this.pos = GetArea.getAvailableArea(snake);
             // Color the occupied cell
             Cell.changeCellColor(pos, colorKeys.valueOf(name.toUpperCase()));
     
@@ -147,7 +138,7 @@ abstract class FieldObjects {
     // Constructor for objects that hold more features such as delaying and yielded respawning
     // Time spawning: The delay time of its creation
     // Alive duration: The time required for it to respawn when not being touched (-1 to nulify)
-    FieldObjects(Callable<Coordinates> c, String name, int timeSpawning, int aliveDuration) {
+    FieldObjects(String name, Snake snake, boolean spawnNearSnake, int timeSpawning, int aliveDuration) {
         this.name = name;
         this.maxAmount = maxAmountTbl.get(name);
 
@@ -160,17 +151,17 @@ abstract class FieldObjects {
         // Increase the current objects present on the field
         FieldObjects.addObjAmount(name, 1);
 
-        findPosCallback = c;
-
         // Create a future for cancellations
         Future<?> spawningFuture = ObjectsHandler.threadPool.submit(() -> {
             try {
 
                 Thread.sleep(timeSpawning);
 
-                this.pos = findPosCallback.call();
-
+                // () ? : are short for if else statements
+                System.out.println("Spawning: " + name);
+                this.pos = (spawnNearSnake) ? GetArea.getAvailableAreaNearSnake(snake) : GetArea.getAvailableArea(snake);
                 // Color the occupied cell
+                System.out.println(this.pos);
                 Cell.changeCellColor(pos, colorKeys.valueOf(name.toUpperCase()));
         
                 ObjectsHandler.currentObjects.add(this);
@@ -178,7 +169,7 @@ abstract class FieldObjects {
                 // Spawn another object there is room for more
                 if (FieldObjects.validateAmount(name, maxAmount)) {
                     // Get the construct and create new obj with reflections
-                    spawnNewSelf(c);
+                    spawnNewSelf(snake);
                     System.out.println(name + " Added by free space");
                 }
 
@@ -187,15 +178,18 @@ abstract class FieldObjects {
                 if (aliveDuration > 0) {
                     Thread.sleep(aliveDuration * 1000);
 
+                    // We check if it is interrupted to save some memory
+                    if (Thread.currentThread().isInterrupted()) {
+                        spawnNewSelf(snake);
+                        System.out.println(name + " Added by yielding");
+                    }
+
                     this.destroyAndRecolor();
 
-                    spawnNewSelf(c);
-
-                    // TODO: Test if not interrupting this section is accurate 
-                    System.out.println(name + " Added by yielding");
+                    spawnNewSelf(snake);
                 }
             } catch (Exception e) {
-
+                //e.printStackTrace();
                 Thread.currentThread().interrupt();
             }
         });
@@ -236,9 +230,9 @@ abstract class FieldObjects {
         destroy();
     }
 
-    public void spawnNewSelf(Callable<Coordinates> c) {
+    public void spawnNewSelf(Snake s) {
         try {
-            this.getClass().getDeclaredConstructor(Callable.class).newInstance(c);
+            this.getClass().getDeclaredConstructor(Snake.class).newInstance(s);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -264,8 +258,8 @@ class Apple extends FieldObjects {
 
     // The active number of all apples and the maximum amount of apples that can appear on-screen
 
-    protected Apple(Callable<Coordinates> c) {
-        super(c, "Apple");
+    protected Apple(Snake snake) {
+        super("Apple", snake);
     }
     
     @Override
@@ -275,14 +269,14 @@ class Apple extends FieldObjects {
         snake.scoreCounter.addScore(1);
 
         // Spawn another apple
-        new Apple(findPosCallback);
+        new Apple(snake);
 
     }
 }
 
 class Bomb extends FieldObjects {
-    protected Bomb(Callable<Coordinates> c) {
-        super(c, "Bomb", 
+    protected Bomb(Snake snake) {
+        super("Bomb", snake, true, 
         Stats.MILISECONDS_PER_UPDATE * rand.nextInt(4, 15)
         , rand.nextInt(4, 6));
     }
@@ -292,7 +286,7 @@ class Bomb extends FieldObjects {
         snake.decreaseLength();
         snake.scoreCounter.addScore(-1);
 
-        new Bomb(findPosCallback);
+        new Bomb(snake);
 
         System.out.println(name + " Added by touching");
     }
@@ -301,8 +295,8 @@ class Bomb extends FieldObjects {
 class DoublePoints extends FieldObjects {
     int duration = 4;
 
-    DoublePoints(Callable<Coordinates> c) {
-        super(c, "DoublePoints"
+    DoublePoints(Snake snake) {
+        super("DoublePoints", snake, false
         , Stats.MILISECONDS_PER_UPDATE * rand.nextInt(10, 15)
         , rand.nextInt(4, 6));
     }
@@ -319,7 +313,7 @@ class DoublePoints extends FieldObjects {
                 Thread.sleep(4 * 1000);
     
                 snake.scoreCounter.setDoubleScore(false);
-                new DoublePoints(findPosCallback);
+                new DoublePoints(snake);
 
                 ObjectsHandler.objectsEffects.remove(futureIndex);
             } catch (InterruptedException e) {
