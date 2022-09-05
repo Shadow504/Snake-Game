@@ -172,7 +172,7 @@ class ScoreCounter {
         }
     
         currScore.addAndGet(n);
-        System.out.println("Current score: " + currScore.get());
+
     }
 
     public void setDoubleScore(boolean b) {
