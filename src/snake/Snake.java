@@ -14,7 +14,7 @@ public class Snake {
     // This boolean prevents the player from changing the direction multiple times in a short amount of time
     // This will make input accepts one direction change per snake movement
     // If we want to avoid that, might need to compare ticks
-    public boolean canChangeDir = true;
+    public boolean canChangeDir = false;
     
     int length;
 

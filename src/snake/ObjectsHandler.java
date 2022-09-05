@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-
-import java.util.concurrent.Callable;
-
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -75,7 +73,10 @@ public class ObjectsHandler {
     public static void destroyAllObjects() {
         System.out.println("Deleted objects");
         
-        for (FieldObjects currObj : currentObjects) {
+        // Copy the original list as we are looping and destroying / deleting its component
+        // Thus, it would throw a Concurrent Modification Exception
+        // This will be costly if used on bigger lists, keep that in mind
+        for (FieldObjects currObj : new CopyOnWriteArrayList<FieldObjects>(currentObjects)) {
             currObj.destroyAndRecolor();
         }     
         currentObjects.clear();
@@ -178,18 +179,14 @@ abstract class FieldObjects {
                 if (aliveDuration > 0) {
                     Thread.sleep(aliveDuration * 1000);
 
-                    // We check if it is interrupted to save some memory
-                    if (Thread.currentThread().isInterrupted()) {
-                        spawnNewSelf(snake);
-                        System.out.println(name + " Added by yielding");
-                    }
-
                     this.destroyAndRecolor();
 
+                    // Don't need to check if the thread is interrupted as
+                    // An object without references will automatically be garbage collected
                     spawnNewSelf(snake);
                 }
             } catch (Exception e) {
-                //e.printStackTrace();
+
                 Thread.currentThread().interrupt();
             }
         });

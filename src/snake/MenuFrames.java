@@ -85,7 +85,7 @@ public class MenuFrames {
     
         JButton endFrame = new JButton();
         currentMenu.add(endFrame);
-
+        
         JLabel jlabel = spawnText("M Non toi khong bt lm chu to len kieu j front end coding phe nhu phan, M non", endFrame);
 
         jlabel.setMaximumSize(new Dimension(sizeX, sizeY));
